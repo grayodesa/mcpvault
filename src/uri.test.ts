@@ -57,4 +57,12 @@ describe('generateObsidianUri', () => {
 
     expect(uri).toBe('obsidian:////Users/test/vault/my%20folder/sub%20folder/note');
   });
+
+  it('handles paths without .md extension', () => {
+    const vaultPath = '/Users/test/vault';
+    const notePath = 'folder/note';
+    const uri = generateObsidianUri(vaultPath, notePath);
+
+    expect(uri).toBe('obsidian:////Users/test/vault/folder/note');
+  });
 });

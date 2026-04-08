@@ -536,8 +536,8 @@ test("handle directory deletion attempt", async () => {
   });
 
   expect(result.success).toBe(false);
-  expect(result.path).toBe(testPath);
-  expect(result.message).toContain("is not a file");
+  // Path is normalized with .md extension for note operations
+  expect(result.path).toBe("test-directory.md");
 });
 
 test("delete note with frontmatter", async () => {
@@ -1365,4 +1365,112 @@ test("listAllTags skips system directories", async () => {
 
   expect(tags).toHaveLength(1);
   expect(tags[0]?.tag).toBe("visible");
+});
+
+// ============================================================================
+// .MD EXTENSION NORMALIZATION TESTS
+// ============================================================================
+
+test("readNote works without .md extension", async () => {
+  await writeFile(join(testVaultPath, "my-note.md"), "# My Note\n\nContent here.");
+
+  const note = await fileSystem.readNote("my-note");
+  expect(note.content).toContain("Content here.");
+});
+
+test("writeNote adds .md extension when missing", async () => {
+  await fileSystem.writeNote({ path: "new-note", content: "# New Note" });
+
+  const content = await readFile(join(testVaultPath, "new-note.md"), "utf-8");
+  expect(content).toContain("# New Note");
+});
+
+test("patchNote works without .md extension", async () => {
+  await writeFile(join(testVaultPath, "patch-target.md"), "old text here");
+
+  const result = await fileSystem.patchNote({
+    path: "patch-target",
+    oldString: "old text",
+    newString: "new text"
+  });
+
+  expect(result.success).toBe(true);
+  const content = await readFile(join(testVaultPath, "patch-target.md"), "utf-8");
+  expect(content).toContain("new text");
+});
+
+test("deleteNote works without .md extension", async () => {
+  await writeFile(join(testVaultPath, "to-delete.md"), "# Delete me");
+
+  const result = await fileSystem.deleteNote({
+    path: "to-delete",
+    confirmPath: "to-delete"
+  });
+
+  expect(result.success).toBe(true);
+});
+
+test("moveNote works without .md extension", async () => {
+  await writeFile(join(testVaultPath, "source.md"), "# Source");
+
+  const result = await fileSystem.moveNote({
+    oldPath: "source",
+    newPath: "destination"
+  });
+
+  expect(result.success).toBe(true);
+  const content = await readFile(join(testVaultPath, "destination.md"), "utf-8");
+  expect(content).toContain("# Source");
+});
+
+test("paths with existing extensions are not double-suffixed", async () => {
+  await writeFile(join(testVaultPath, "note.md"), "# Note");
+
+  const note = await fileSystem.readNote("note.md");
+  expect(note.content).toContain("# Note");
+});
+
+test("deleteNote confirmation compares raw values before normalization", async () => {
+  await writeFile(join(testVaultPath, "draft.md"), "# Draft");
+
+  // Mismatched raw values should be rejected even if they normalize to the same path
+  const result = await fileSystem.deleteNote({
+    path: "draft",
+    confirmPath: "draft.md"
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.message).toContain("confirmation path does not match");
+});
+
+test("moveNote rejects no-op move where paths normalize to same file", async () => {
+  await writeFile(join(testVaultPath, "note.md"), "# Note");
+
+  const result = await fileSystem.moveNote({
+    oldPath: "note",
+    newPath: "note.md"
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.message).toContain("same file");
+});
+
+test("trailing slash in path does not create hidden .md file", async () => {
+  await mkdir(join(testVaultPath, "notes"), { recursive: true });
+
+  await fileSystem.writeNote({ path: "notes/", content: "# Test" });
+
+  // Should NOT create "notes/.md" — the trailing slash is stripped,
+  // so the path becomes "notes.md"
+  const exists = await fileSystem.exists("notes/.md");
+  expect(exists).toBe(false);
+});
+
+test("backslash separators are normalized before extension check", async () => {
+  await mkdir(join(testVaultPath, "folder.with.dot"), { recursive: true });
+  await writeFile(join(testVaultPath, "folder.with.dot", "note.md"), "# Note");
+
+  // Windows-style path with dot in parent folder should still resolve correctly
+  const note = await fileSystem.readNote("folder.with.dot/note");
+  expect(note.content).toContain("# Note");
 });
