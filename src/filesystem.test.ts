@@ -1429,3 +1429,28 @@ test("paths with existing extensions are not double-suffixed", async () => {
   const note = await fileSystem.readNote("note.md");
   expect(note.content).toContain("# Note");
 });
+
+test("deleteNote confirmation compares raw values before normalization", async () => {
+  await writeFile(join(testVaultPath, "draft.md"), "# Draft");
+
+  // Mismatched raw values should be rejected even if they normalize to the same path
+  const result = await fileSystem.deleteNote({
+    path: "draft",
+    confirmPath: "draft.md"
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.message).toContain("confirmation path does not match");
+});
+
+test("moveNote rejects no-op move where paths normalize to same file", async () => {
+  await writeFile(join(testVaultPath, "note.md"), "# Note");
+
+  const result = await fileSystem.moveNote({
+    oldPath: "note",
+    newPath: "note.md"
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.message).toContain("same file");
+});

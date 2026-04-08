@@ -392,18 +392,16 @@ export class FileSystemService {
   }
 
   async deleteNote(params: DeleteNoteParams): Promise<DeleteResult> {
-    const path = this.ensureMdExtension(params.path);
-    const confirmPath = this.ensureMdExtension(params.confirmPath);
-
-    // Confirmation check - paths must match exactly
-    if (path !== confirmPath) {
+    // Confirmation check uses raw values before normalization to preserve the exact-match safeguard
+    if (params.path !== params.confirmPath) {
       return {
         success: false,
-        path: path,
+        path: params.path,
         message: "Deletion cancelled: confirmation path does not match. For safety, both 'path' and 'confirmPath' must be identical."
       };
     }
 
+    const path = this.ensureMdExtension(params.path);
     const fullPath = this.resolvePath(path);
 
     if (!this.pathFilter.isAllowed(path)) {
@@ -463,6 +461,16 @@ export class FileSystemService {
     const { overwrite = false } = params;
     const oldPath = this.ensureMdExtension(params.oldPath);
     const newPath = this.ensureMdExtension(params.newPath);
+
+    // Guard against no-op moves that would delete the file (paths collapse after normalization)
+    if (oldPath === newPath) {
+      return {
+        success: false,
+        oldPath,
+        newPath,
+        message: `Source and destination are the same file: ${oldPath}. No move needed.`
+      };
+    }
 
     if (!this.pathFilter.isAllowed(oldPath)) {
       return {
