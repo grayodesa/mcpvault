@@ -26,6 +26,15 @@ export class FileSystemService {
     this.frontmatterHandler = frontmatterHandler || new FrontmatterHandler();
   }
 
+  private ensureMdExtension(path: string): string {
+    const lastSegment = path.split('/').pop() || path;
+    // If the last segment already has a file extension (dot after the first character), keep as is
+    if (lastSegment.lastIndexOf('.') > 0) {
+      return path;
+    }
+    return `${path}.md`;
+  }
+
   private resolvePath(relativePath: string): string {
     // Handle undefined or null path
     if (!relativePath) {
@@ -88,6 +97,7 @@ export class FileSystemService {
   }
 
   async readNote(path: string): Promise<ParsedNote> {
+    path = this.ensureMdExtension(path);
     const fullPath = this.resolvePath(path);
 
     if (!this.pathFilter.isAllowed(path)) {
@@ -120,7 +130,8 @@ export class FileSystemService {
   }
 
   async writeNote(params: NoteWriteParams): Promise<void> {
-    const { path, content, frontmatter, mode = 'overwrite' } = params;
+    const { content, frontmatter, mode = 'overwrite' } = params;
+    const path = this.ensureMdExtension(params.path);
     const fullPath = this.resolvePath(path);
 
     if (!this.pathFilter.isAllowed(path)) {
@@ -197,7 +208,8 @@ export class FileSystemService {
   }
 
   async patchNote(params: PatchNoteParams): Promise<PatchNoteResult> {
-    const { path, oldString, newString, replaceAll = false } = params;
+    const { oldString, newString, replaceAll = false } = params;
+    const path = this.ensureMdExtension(params.path);
 
     if (!this.pathFilter.isAllowed(path)) {
       return {
@@ -380,7 +392,8 @@ export class FileSystemService {
   }
 
   async deleteNote(params: DeleteNoteParams): Promise<DeleteResult> {
-    const { path, confirmPath } = params;
+    const path = this.ensureMdExtension(params.path);
+    const confirmPath = this.ensureMdExtension(params.confirmPath);
 
     // Confirmation check - paths must match exactly
     if (path !== confirmPath) {
@@ -447,7 +460,9 @@ export class FileSystemService {
   }
 
   async moveNote(params: MoveNoteParams): Promise<MoveResult> {
-    const { oldPath, newPath, overwrite = false } = params;
+    const { overwrite = false } = params;
+    const oldPath = this.ensureMdExtension(params.oldPath);
+    const newPath = this.ensureMdExtension(params.newPath);
 
     if (!this.pathFilter.isAllowed(oldPath)) {
       return {
@@ -663,7 +678,8 @@ export class FileSystemService {
     }
 
     const results = await Promise.allSettled(
-      paths.map(async (path) => {
+      paths.map(async (rawPath) => {
+        const path = this.ensureMdExtension(rawPath);
         if (!this.pathFilter.isAllowed(path)) {
           throw new Error(`Access denied: ${path}. This path is restricted (system files like .obsidian, .git, and dotfiles are not accessible).`);
         }
@@ -704,7 +720,8 @@ export class FileSystemService {
   }
 
   async updateFrontmatter(params: UpdateFrontmatterParams): Promise<void> {
-    const { path, frontmatter, merge = true } = params;
+    const { frontmatter, merge = true } = params;
+    const path = this.ensureMdExtension(params.path);
 
     if (!this.pathFilter.isAllowed(path)) {
       throw new Error(`Access denied: ${path}. This path is restricted (system files like .obsidian, .git, and dotfiles are not accessible).`);
@@ -734,7 +751,8 @@ export class FileSystemService {
 
   async getNotesInfo(paths: string[]): Promise<NoteInfo[]> {
     const results = await Promise.allSettled(
-      paths.map(async (path): Promise<NoteInfo> => {
+      paths.map(async (rawPath): Promise<NoteInfo> => {
+        const path = this.ensureMdExtension(rawPath);
         if (!this.pathFilter.isAllowed(path)) {
           throw new Error(`Access denied: ${path}. This path is restricted (system files like .obsidian, .git, and dotfiles are not accessible).`);
         }
@@ -776,7 +794,8 @@ export class FileSystemService {
   }
 
   async manageTags(params: TagManagementParams): Promise<TagManagementResult> {
-    const { path, operation, tags = [] } = params;
+    const { operation, tags = [] } = params;
+    const path = this.ensureMdExtension(params.path);
 
     if (!this.pathFilter.isAllowed(path)) {
       return {

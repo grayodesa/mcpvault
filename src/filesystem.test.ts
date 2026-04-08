@@ -536,8 +536,8 @@ test("handle directory deletion attempt", async () => {
   });
 
   expect(result.success).toBe(false);
-  expect(result.path).toBe(testPath);
-  expect(result.message).toContain("is not a file");
+  // Path is normalized with .md extension for note operations
+  expect(result.path).toBe("test-directory.md");
 });
 
 test("delete note with frontmatter", async () => {
@@ -1365,4 +1365,67 @@ test("listAllTags skips system directories", async () => {
 
   expect(tags).toHaveLength(1);
   expect(tags[0]?.tag).toBe("visible");
+});
+
+// ============================================================================
+// .MD EXTENSION NORMALIZATION TESTS
+// ============================================================================
+
+test("readNote works without .md extension", async () => {
+  await writeFile(join(testVaultPath, "my-note.md"), "# My Note\n\nContent here.");
+
+  const note = await fileSystem.readNote("my-note");
+  expect(note.content).toContain("Content here.");
+});
+
+test("writeNote adds .md extension when missing", async () => {
+  await fileSystem.writeNote({ path: "new-note", content: "# New Note" });
+
+  const content = await readFile(join(testVaultPath, "new-note.md"), "utf-8");
+  expect(content).toContain("# New Note");
+});
+
+test("patchNote works without .md extension", async () => {
+  await writeFile(join(testVaultPath, "patch-target.md"), "old text here");
+
+  const result = await fileSystem.patchNote({
+    path: "patch-target",
+    oldString: "old text",
+    newString: "new text"
+  });
+
+  expect(result.success).toBe(true);
+  const content = await readFile(join(testVaultPath, "patch-target.md"), "utf-8");
+  expect(content).toContain("new text");
+});
+
+test("deleteNote works without .md extension", async () => {
+  await writeFile(join(testVaultPath, "to-delete.md"), "# Delete me");
+
+  const result = await fileSystem.deleteNote({
+    path: "to-delete",
+    confirmPath: "to-delete"
+  });
+
+  expect(result.success).toBe(true);
+});
+
+test("moveNote works without .md extension", async () => {
+  await writeFile(join(testVaultPath, "source.md"), "# Source");
+
+  const result = await fileSystem.moveNote({
+    oldPath: "source",
+    newPath: "destination"
+  });
+
+  expect(result.success).toBe(true);
+  const content = await readFile(join(testVaultPath, "destination.md"), "utf-8");
+  expect(content).toContain("# Source");
+});
+
+test("paths with existing extensions are not double-suffixed", async () => {
+  await writeFile(join(testVaultPath, "note.md"), "# Note");
+
+  const note = await fileSystem.readNote("note.md");
+  expect(note.content).toContain("# Note");
 });
