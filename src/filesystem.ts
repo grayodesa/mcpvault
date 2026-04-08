@@ -27,6 +27,8 @@ export class FileSystemService {
   }
 
   private ensureMdExtension(path: string): string {
+    // Normalize Windows backslashes to forward slashes
+    path = path.replace(/\\/g, '/');
     // Strip trailing slashes to avoid creating hidden files like "notes/.md"
     path = path.replace(/\/+$/, '');
     const lastSegment = path.split('/').pop() || '';

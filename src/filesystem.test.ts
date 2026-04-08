@@ -1465,3 +1465,12 @@ test("trailing slash in path does not create hidden .md file", async () => {
   const exists = await fileSystem.exists("notes/.md");
   expect(exists).toBe(false);
 });
+
+test("backslash separators are normalized before extension check", async () => {
+  await mkdir(join(testVaultPath, "folder.with.dot"), { recursive: true });
+  await writeFile(join(testVaultPath, "folder.with.dot", "note.md"), "# Note");
+
+  // Windows-style path with dot in parent folder should still resolve correctly
+  const note = await fileSystem.readNote("folder.with.dot/note");
+  expect(note.content).toContain("# Note");
+});
