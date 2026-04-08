@@ -27,7 +27,12 @@ export class FileSystemService {
   }
 
   private ensureMdExtension(path: string): string {
-    const lastSegment = path.split('/').pop() || path;
+    // Strip trailing slashes to avoid creating hidden files like "notes/.md"
+    path = path.replace(/\/+$/, '');
+    const lastSegment = path.split('/').pop() || '';
+    if (!lastSegment) {
+      return path;
+    }
     // If the last segment already has a file extension (dot after the first character), keep as is
     if (lastSegment.lastIndexOf('.') > 0) {
       return path;

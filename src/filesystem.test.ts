@@ -1454,3 +1454,14 @@ test("moveNote rejects no-op move where paths normalize to same file", async () 
   expect(result.success).toBe(false);
   expect(result.message).toContain("same file");
 });
+
+test("trailing slash in path does not create hidden .md file", async () => {
+  await mkdir(join(testVaultPath, "notes"), { recursive: true });
+
+  await fileSystem.writeNote({ path: "notes/", content: "# Test" });
+
+  // Should NOT create "notes/.md" — the trailing slash is stripped,
+  // so the path becomes "notes.md"
+  const exists = await fileSystem.exists("notes/.md");
+  expect(exists).toBe(false);
+});
